@@ -1,1 +1,1 @@
-# rubedo-docker-haproxy
+# rubedo-docker-haproxy based on tutum/haproxy

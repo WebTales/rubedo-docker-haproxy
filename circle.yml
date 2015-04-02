@@ -1,0 +1,34 @@
+machine:
+  services:
+    - docker
+dependencies:
+  override:
+    - docker build -t haproxy .
+    - docker run -d --name web1 tutum/hello-world
+    - docker run -d --name web2 tutum/hello-world
+test:
+  override:
+    - docker run -d -p 80:80 --link web1:web1 --link web2:web2 haproxy; sleep 10
+    - curl --retry 10 --retry-delay 5 -L -I http://localhost | grep "200 OK"
+    # test virtual host method 1
+    - docker run -d --name tomcat1 tutum/tomcat
+    - docker run -d --name glassfish1 tutum/glassfish
+    - docker run -d --link glassfish1:glassfish1 --link tomcat1:tomcat1 -e BACKEND_PORT=8080 -e VIRTUAL_HOST="tomcat1=www.tomcat.org, glassfish1=www.glassfish.org" -p 8007:80 haproxy; sleep 30
+    - "curl -H 'Host:www.tomcat.org' 127.0.0.1:8007 | grep 'Apache Tomcat'"
+    - "curl -H 'Host:www.glassfish.org' 127.0.0.1:8007 | grep 'GlassFish Server'"
+    # test virtual host method 2
+    - docker run -d -e VIRTUAL_HOST=www.tomcat.com --name tomcat2 tutum/tomcat
+    - docker run -d -e VIRTUAL_HOST=www.glassfish.com --name glassfish2 tutum/glassfish
+    - docker run -d --link glassfish2:glassfish2 --link tomcat2:tomcat2 -e BACKEND_PORT=8080 -p 8008:80 haproxy; sleep 30
+    - "curl -H 'Host:www.tomcat.com' 127.0.0.1:8008 | grep 'Apache Tomcat'"
+    - "curl -H 'Host:www.glassfish.com' 127.0.0.1:8008 | grep 'GlassFish Server'"
+    # test https
+    - openssl req -x509 -newkey rsa:2048 -keyout key.pem -out ca.pem -days 1080 -nodes -subj '/CN=localhost/O=My Company Name LTD./C=US'
+    - cp key.pem cert.pem
+    - cat ca.pem >> cert.pem
+    - docker run -d --link web1:web1 -p 443:443 -e SSL_CERT="$(awk 1 ORS='\\n' cert.pem)" haproxy
+    - curl --retry 10 --retry-delay 5 --cacert ca.pem -L -I https://localhost | grep "200 OK"
+    # test wildcard subdomains on virtualhost
+    - docker run -d -e VIRTUAL_HOST=node.io --name webapp tutum/hello-world
+    - docker run -d --link webapp:webapp -e HDR="hdr_end" -p 8009:80 haproxy
+    - curl -H "host:test.node.io" localhost:8009
