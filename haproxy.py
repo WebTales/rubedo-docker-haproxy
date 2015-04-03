@@ -147,9 +147,11 @@ def update_cfg(cfg, backend_routes, vhost):
     else:
         frontend.append("default_backend default_service")
     if IP_PROBE and IP_PROBE != "**None**":
-        for ip in IP_PROBE.split(','):
-            frontend.append("acl ip_probe_%s src %s" % (ip.strip(), ip.strip()))
-            frontend.append("use_backend IPPROBE if ip_probe_%s" % (ip.strip()))
+        ips = IP_PROBE.split(',')
+        for ip in ips:
+            idx = ips.index(ip)
+            frontend.append("acl ip_probe_%s src %s" % (idx, ip.strip()))
+            frontend.append("use_backend IPPROBE if ip_probe_%s" % (idx))
     cfg["frontend default_frontend"] = frontend
 
     # Set backend
