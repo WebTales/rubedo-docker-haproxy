@@ -44,6 +44,8 @@ LINK_ADDR_SUFFIX = LINK_ENV_PATTERN + "_ADDR"
 LINK_PORT_SUFFIX = LINK_ENV_PATTERN + "_PORT"
 TUTUM_URL_SUFFIX = "_TUTUM_API_URL"
 VIRTUAL_HOST_SUFFIX = "_ENV_VIRTUAL_HOST"
+TUTUM_API_URL = "https://dashboard.tutum.co"
+TUTUM_SERVICES_URL = TUTUM_API_URL + "/api/v1/service/"
 
 # Global Var
 HAPROXY_CURRENT_SUBPROCESS = None
@@ -90,6 +92,7 @@ def create_default_cfg(maxconn, mode):
 def get_backend_routes_tutum(api_url, auth):
     # Return sth like: {'HELLO_WORLD_1': {'proto': 'tcp', 'addr': '172.17.0.103', 'port': '80'},
     # 'HELLO_WORLD_2': {'proto': 'tcp', 'addr': '172.17.0.95', 'port': '80'}}
+    global VIRTUAL_HOST
     session = requests.Session()
     headers = {"Authorization": auth}
     r = session.get(api_url, headers=headers)
@@ -101,6 +104,39 @@ def get_backend_routes_tutum(api_url, auth):
         for port, endpoint in link.get("endpoints", {}).iteritems():
             if port in ["%s/tcp" % x for x in BACKEND_PORTS]:
                 addr_port_dict[link["name"].upper().replace("-", "_")] = endpoint_match.match(endpoint).groupdict()
+
+    r = session.get(TUTUM_SERVICES_URL, headers=headers)
+    r.raise_for_status()
+    services = r.json()
+
+    servicesUrl = []
+    for service in services.get("objects", []):
+        prefixName = service["name"].split("-")
+        if prefixName[0] == "APACHE":
+            servicesUrl.append(service["resource_uri"])
+
+    for serviceUrl in servicesUrl:
+        serviceUrl = TUTUM_API_URL + serviceUrl
+        r = session.get(serviceUrl, headers=headers)
+        r.raise_for_status()
+        service = r.json()
+        serviceName = service["name"].upper().replace("-", "_")
+        for nbr in range(1, service["target_num_containers"] + 1):
+            containerName = serviceName + "_" + str(nbr)
+            linkVars = service.get("link_variables")
+            container = {}
+            container["port"] = "80"
+            container["proto"] = "tcp"
+            container["addr"] = linkVars[containerName+"_PORT_80_TCP_ADDR"]
+            addr_port_dict[containerName] = container
+
+        for env in service.get("container_envvars", []):
+            if env["key"] == "VIRTUAL_HOST":
+                if VIRTUAL_HOST:
+                    VIRTUAL_HOST = VIRTUAL_HOST + "," + serviceName + "=" + env["value"]
+                else:
+                    VIRTUAL_HOST = serviceName + "=" + env["value"]
+
 
     return addr_port_dict
 
@@ -265,13 +301,12 @@ def update_virtualhost(vhost):
             tmp = host.split("=", 2)
             if len(tmp) == 2:
                 vhost[tmp[0].strip()] = tmp[1].strip()
-    else:
-        # vhost specified in the linked containers
-        for name, value in os.environ.iteritems():
-            position = string.find(name, VIRTUAL_HOST_SUFFIX)
-            if position != -1 and value != "**None**":
-                hostname = name[:position]
-                vhost[hostname] = value
+    # vhost specified in the linked containers
+    for name, value in os.environ.iteritems():
+        position = string.find(name, VIRTUAL_HOST_SUFFIX)
+        if position != -1 and value != "**None**":
+            hostname = name[:position]
+            vhost[hostname] = value
 
 if __name__ == "__main__":
     logging.basicConfig(stream=sys.stdout)
