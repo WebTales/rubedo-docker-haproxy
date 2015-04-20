@@ -111,31 +111,33 @@ def get_backend_routes_tutum(api_url, auth):
 
     servicesUrl = []
     for service in services.get("objects", []):
-        prefixName = service["name"].split("-")
-        if prefixName[0] == "APACHE":
-            servicesUrl.append(service["resource_uri"])
+        if service["state"] == "Running":
+            prefixName = service["name"].split("-")
+            if prefixName[0] == "APACHE":
+                servicesUrl.append(service["resource_uri"])
 
     for serviceUrl in servicesUrl:
         serviceUrl = TUTUM_API_URL + serviceUrl
         r = session.get(serviceUrl, headers=headers)
         r.raise_for_status()
         service = r.json()
-        serviceName = service["name"].upper().replace("-", "_")
-        for nbr in range(1, service["target_num_containers"] + 1):
-            containerName = serviceName + "_" + str(nbr)
-            linkVars = service.get("link_variables")
-            container = {}
-            container["port"] = "80"
-            container["proto"] = "tcp"
-            container["addr"] = linkVars[containerName+"_PORT_80_TCP_ADDR"]
-            addr_port_dict[containerName] = container
+        if service["state"] == "Running":
+            serviceName = service["name"].upper().replace("-", "_")
+            for nbr in range(1, service["target_num_containers"] + 1):
+                containerName = serviceName + "_" + str(nbr)
+                linkVars = service.get("link_variables")
+                container = {}
+                container["port"] = "80"
+                container["proto"] = "tcp"
+                container["addr"] = linkVars[containerName+"_PORT_80_TCP_ADDR"]
+                addr_port_dict[containerName] = container
 
-        for env in service.get("container_envvars", []):
-            if env["key"] == "VIRTUAL_HOST":
-                if VIRTUAL_HOST:
-                    VIRTUAL_HOST = VIRTUAL_HOST + "," + serviceName + "=" + env["value"]
-                else:
-                    VIRTUAL_HOST = serviceName + "=" + env["value"]
+            for env in service.get("container_envvars", []):
+                if env["key"] == "VIRTUAL_HOST":
+                    if VIRTUAL_HOST:
+                        VIRTUAL_HOST = VIRTUAL_HOST + "," + serviceName + "=" + env["value"]
+                    else:
+                        VIRTUAL_HOST = serviceName + "=" + env["value"]
 
 
     return addr_port_dict
