@@ -190,6 +190,10 @@ def update_cfg(cfg, backend_routes, vhost):
             idx = ips.index(ip)
             frontend.append("acl ip_probe_%s src %s" % (idx, ip.strip()))
             frontend.append("use_backend IPPROBE if ip_probe_%s" % (idx))
+    if TUTUM_AUTH:
+        frontend.append("acl is_websocket hdr(Upgrade) -i websocket")
+        frontend.append("acl is_websocket path_beg -i /events")
+        frontend.append("use_backend websocket_backend if is_events is_websocket")
     cfg["frontend default_frontend"] = frontend
 
     # Set backend
@@ -264,6 +268,12 @@ def update_cfg(cfg, backend_routes, vhost):
 
     if IP_PROBE and IP_PROBE != "**None**":
         cfg["backend IPPROBE"] = ["errorfile 503 /etc/haproxy/503"]
+    if TUTUM_AUTH:
+        cfgwebsocket = []
+        cfgwebsocket.append("timeout server 600s")
+        cfgwebsocket.append("reqrep ^([^\ :]*)\ /v1/events(.*)     \1\ /v1/events?auth=%s" % TUTUM_AUTH)
+        cfgwebsocket.append("server tutum stream.tutum.co:443 ssl verify none")
+        cfg["backend websocket"] = cfgwebsocket
 
     logger.debug("New cfg: %s", cfg)
 
