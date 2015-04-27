@@ -192,7 +192,7 @@ def update_cfg(cfg, backend_routes, vhost):
             frontend.append("use_backend IPPROBE if ip_probe_%s" % (idx))
     if TUTUM_AUTH:
         frontend.append("acl is_websocket hdr(Upgrade) -i websocket")
-        frontend.append("acl is_websocket path_beg -i /events")
+        frontend.append("acl is_events path_beg -i /v1/events")
         frontend.append("use_backend websocket_backend if is_events is_websocket")
     cfg["frontend default_frontend"] = frontend
 
@@ -271,11 +271,14 @@ def update_cfg(cfg, backend_routes, vhost):
     if TUTUM_AUTH:
         cfgwebsocket = []
         cfgwebsocket.append("timeout server 600s")
-        cfgwebsocket.append("reqrep ^([^\ :]*)\ /v1/events(.*)     \1\ /v1/events?auth=%s" % TUTUM_AUTH)
+        auth_split = TUTUM_AUTH.split()
+        tutum_auth_string = "%s%%20%s" % (auth_split[0], auth_split[1])
+        cfgwebsocket.append("reqrep ^([^\ :]*)\ /v1/events(.*)     \1\ /v1/events?auth=%s\2" % tutum_auth_string)
         cfgwebsocket.append("server tutum stream.tutum.co:443 ssl verify none")
-        cfg["backend websocket"] = cfgwebsocket
+        cfg["backend websocket_backend"] = cfgwebsocket
 
     logger.debug("New cfg: %s", cfg)
+
 
 
 def save_config_file(cfg_text, config_file):
