@@ -88,6 +88,23 @@ def create_default_cfg(maxconn, mode):
 
     return cfg
 
+def list_services_url(services, servicesUrl, auth):
+    session = requests.Session()
+    headers = {"Authorization": auth}
+    for service in services.get("objects", []):
+        if service["state"] == "Running":
+            prefixName = service["name"].split("-")
+            if prefixName[0] == "APACHE":
+                servicesUrl.append(service["resource_uri"])
+    meta = services.get("meta")
+    next = meta["next"]
+    if next:
+        r = session.get(TUTUM_API_URL + next, headers=headers)
+        r.raise_for_status()
+        nextServices = r.json()
+        list_services_url(nextServices, servicesUrl, auth)
+
+    return servicesUrl
 
 def get_backend_routes_tutum(api_url, auth):
     # Return sth like: {'HELLO_WORLD_1': {'proto': 'tcp', 'addr': '172.17.0.103', 'port': '80'},
@@ -109,12 +126,7 @@ def get_backend_routes_tutum(api_url, auth):
     r.raise_for_status()
     services = r.json()
 
-    servicesUrl = []
-    for service in services.get("objects", []):
-        if service["state"] == "Running":
-            prefixName = service["name"].split("-")
-            if prefixName[0] == "APACHE":
-                servicesUrl.append(service["resource_uri"])
+    servicesUrl = list_services_url(services, [], auth)
 
     for serviceUrl in servicesUrl:
         serviceUrl = TUTUM_API_URL + serviceUrl
