@@ -92,7 +92,7 @@ def list_services_url(services, servicesUrl, auth):
     session = requests.Session()
     headers = {"Authorization": auth}
     for service in services.get("objects", []):
-        if service["state"] == "Running":
+        if (service["state"] == "Running") or (service["state"] == "Partly running"):
             prefixName = service["name"].split("-")
             if prefixName[0] == "APACHE":
                 servicesUrl.append(service["resource_uri"])
