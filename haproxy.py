@@ -106,6 +106,18 @@ def list_services_url(services, servicesUrl, auth):
 
     return servicesUrl
 
+def getIpStoppedContainer(url, env, auth):
+    session = requests.Session()
+    headers = {"Authorization": auth}
+    r = session.get(TUTUM_API_URL + url, headers=headers)
+    r.raise_for_status()
+    container = r.json()
+    linkVars = container.get("link_variables")
+    if env in linkVars:
+        return linkVars[env]
+    else:
+        return False
+
 def get_backend_routes_tutum(api_url, auth):
     # Return sth like: {'HELLO_WORLD_1': {'proto': 'tcp', 'addr': '172.17.0.103', 'port': '80'},
     # 'HELLO_WORLD_2': {'proto': 'tcp', 'addr': '172.17.0.95', 'port': '80'}}
@@ -141,8 +153,14 @@ def get_backend_routes_tutum(api_url, auth):
                 container = {}
                 container["port"] = "80"
                 container["proto"] = "tcp"
-                container["addr"] = linkVars[containerName+"_PORT_80_TCP_ADDR"]
-                addr_port_dict[containerName] = container
+                if containerName+"_PORT_80_TCP_ADDR" in linkVars:
+                    container["addr"] = linkVars[containerName+"_PORT_80_TCP_ADDR"]
+                    addr_port_dict[containerName] = container
+                else:
+                    ip = getIpStoppedContainer(service.get("containers")[nbr-1], containerName+"_PORT_80_TCP_ADDR", auth)
+                    if ip != False:
+                        container["addr"] = ip
+                        addr_port_dict[containerName] = container
 
             for env in service.get("container_envvars", []):
                 if env["key"] == "VIRTUAL_HOST":
