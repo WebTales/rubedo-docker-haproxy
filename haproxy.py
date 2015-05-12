@@ -133,7 +133,7 @@ def get_backend_routes_tutum(api_url, auth):
         r = session.get(serviceUrl, headers=headers)
         r.raise_for_status()
         service = r.json()
-        if service["state"] == "Running":
+        if (service["state"] == "Running") or (service["state"] == "Partly running"):
             serviceName = service["name"].upper().replace("-", "_")
             for nbr in range(1, service["target_num_containers"] + 1):
                 containerName = serviceName + "_" + str(nbr)
