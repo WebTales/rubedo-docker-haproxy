@@ -236,7 +236,7 @@ def update_cfg(cfg, backend_routes, vhost):
                 if added_vhost.has_key(domain_name):
                     backend = cfg.get("backend %s_cluster" % domain_str, [])
                     for container_name, addr_port in backend_routes.iteritems():
-                        if container_name.startswith(service_name):
+                        if container_name.startswith(service_name + '_'):
                             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
                             if SESSION_COOKIE:
                                 server_string += " cookie check"
@@ -257,7 +257,7 @@ def update_cfg(cfg, backend_routes, vhost):
 
                     backend.append("balance %s" % BALANCE)
                     for container_name, addr_port in backend_routes.iteritems():
-                        if container_name.startswith(service_name):
+                        if container_name.startswith(service_name + '_'):
                             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
                             if SESSION_COOKIE:
                                 server_string += " cookie check"
