@@ -29,7 +29,7 @@ ENV HDR hdr
 ENV BALANCE roundrobin
 
 # define session stickiness on an existing application cookie
-ENV SESSION_COOKIE yes
+ENV SESSION_COOKIE **None**
 
 # maximum number of connections
 ENV MAXCONN 4096

@@ -32,7 +32,6 @@ VIRTUAL_HOST = os.getenv("VIRTUAL_HOST", None)
 IP_PROBE = os.getenv("IP_PROBE", None)
 TUTUM_CONTAINER_API_URL = os.getenv("TUTUM_CONTAINER_API_URL", None)
 POLLING_PERIOD = max(int(os.getenv("POLLING_PERIOD", 30)), 5)
-
 TUTUM_AUTH = os.getenv("TUTUM_AUTH")
 DEBUG = os.getenv("DEBUG", False)
 
@@ -239,6 +238,7 @@ def update_cfg(cfg, backend_routes, vhost):
                         if container_name.startswith(service_name + '_'):
                             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
                             if SESSION_COOKIE:
+                                backend.append("cookie %s" % SESSION_COOKIE)
                                 server_string += " cookie check"
 
                             # Do not add duplicate backend routes
@@ -260,6 +260,7 @@ def update_cfg(cfg, backend_routes, vhost):
                         if container_name.startswith(service_name + '_'):
                             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
                             if SESSION_COOKIE:
+                                backend.append("cookie %s" % SESSION_COOKIE)
                                 server_string += " cookie check"
 
                             # Do not add duplicate backend routes
@@ -277,12 +278,14 @@ def update_cfg(cfg, backend_routes, vhost):
     else:
         backend = []
         if SESSION_COOKIE:
+            backend.append("cookie %s" % SESSION_COOKIE)
             backend.append("appsession %s len 64 timeout 3h request-learn prefix" % (SESSION_COOKIE, ))
 
         backend.append("balance %s" % BALANCE)
         for container_name, addr_port in backend_routes.iteritems():
             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
             if SESSION_COOKIE:
+                backend.append("cookie %s" % SESSION_COOKIE)
                 server_string += " cookie check"
 
             # Do not add duplicate backend routes
