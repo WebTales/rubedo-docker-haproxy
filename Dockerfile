@@ -28,6 +28,9 @@ ENV HDR hdr
 # algorithm for load balancing (roundrobin, source, leastconn, ...)
 ENV BALANCE roundrobin
 
+# define session stickiness on an existing application cookie
+ENV SESSION_COOKIE yes
+
 # maximum number of connections
 ENV MAXCONN 4096
 
