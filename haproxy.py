@@ -25,7 +25,7 @@ MAXCONN = os.getenv("MAXCONN", "4096")
 SSL = os.getenv("SSL", "")
 SSL_BIND_OPTIONS = os.getenv("SSL_BIND_OPTIONS", None)
 SSL_BIND_CIPHERS = os.getenv("SSL_BIND_CIPHERS", None)
-SESSION_COOKIE = os.getenv("SESSION_COOKIE")
+SESSION_COOKIE = os.getenv("SESSION_COOKIE", None)
 OPTION = os.getenv("OPTION", "redispatch, httplog, dontlognull, forwardfor").split(",")
 TIMEOUT = os.getenv("TIMEOUT", "connect 5000, client 50000, server 50000").split(",")
 VIRTUAL_HOST = os.getenv("VIRTUAL_HOST", None)
@@ -146,9 +146,9 @@ def get_backend_routes_tutum(api_url, auth):
         service = r.json()
         if (service["state"] == "Running") or (service["state"] == "Partly running"):
             serviceName = service["name"].upper().replace("-", "_")
+            linkVars = service.get("link_variables")
             for nbr in range(1, service["target_num_containers"] + 1):
                 containerName = serviceName + "_" + str(nbr)
-                linkVars = service.get("link_variables")
                 container = {}
                 container["port"] = "80"
                 container["proto"] = "tcp"
@@ -166,8 +166,7 @@ def get_backend_routes_tutum(api_url, auth):
                     if VIRTUAL_HOST:
                         VIRTUAL_HOST = VIRTUAL_HOST + "," + serviceName + "=" + env["value"]
                     else:
-                        VIRTUAL_HOST = serviceName + "=" + env["value"]
-
+                        VIRTUAL_HOST = serviceName + "=" + env["value"]				
 
     return addr_port_dict
 
@@ -252,16 +251,14 @@ def update_cfg(cfg, backend_routes, vhost):
                     cfg["backend %s_cluster" % domain_str] = sorted(backend)
                 else:
                     backend = []
-                    if SESSION_COOKIE:
-                        backend.append("appsession %s len 64 timeout 3h request-learn prefix" % (SESSION_COOKIE, ))
 
                     backend.append("balance %s" % BALANCE)
                     for container_name, addr_port in backend_routes.iteritems():
                         if container_name.startswith(service_name + '_'):
                             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
                             if SESSION_COOKIE:
-                                backend.append("cookie %s" % SESSION_COOKIE)
-                                server_string += " cookie check"
+                                backend.append("cookie SERVERID insert indirect nocache")
+                                server_string += " cookie check %s" % container_name
 
                             # Do not add duplicate backend routes
                             duplicated = False
