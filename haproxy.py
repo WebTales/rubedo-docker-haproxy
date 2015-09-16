@@ -237,8 +237,8 @@ def update_cfg(cfg, backend_routes, vhost):
                         if container_name.startswith(service_name + '_'):
                             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
                             if SESSION_COOKIE:
-                                backend.append("cookie %s" % SESSION_COOKIE)
-                                server_string += " cookie check"
+                                backend.append("cookie SERVERID insert indirect nocache")
+                                server_string += " check cookie %s" % container_name
 
                             # Do not add duplicate backend routes
                             duplicated = False
@@ -258,7 +258,7 @@ def update_cfg(cfg, backend_routes, vhost):
                             server_string = "server %s %s:%s" % (container_name, addr_port["addr"], addr_port["port"])
                             if SESSION_COOKIE:
                                 backend.append("cookie SERVERID insert indirect nocache")
-                                server_string += " cookie check %s" % container_name
+                                server_string += " check cookie %s" % container_name
 
                             # Do not add duplicate backend routes
                             duplicated = False
